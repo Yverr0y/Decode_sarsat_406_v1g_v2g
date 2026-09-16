@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
     size_t filled = 0;
     uint64_t abs_base = 0;          /* absolute sample index of buf[0] */
     uint64_t last_decoded_end = 0;  /* dedup across the overlap */
-    int n_burst = 0, n_ok = 0, n_crc = 0, n_nof = 0;
+    int n_burst = 0, n_ok = 0, n_bch = 0, n_nof = 0;
 
     printf("FGB offline decoder — %s @ %d Hz\n", fn, samp_rate);
 
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
                 free(win);
 
                 if (rc == 0)       { n_ok++;  decode_1g(bits, flen); }
-                else if (rc == -2) { n_crc++; printf("  FGB burst — CRC FAIL\n"); }
+                else if (rc == -2) { n_bch++; printf("  FGB burst — BCH FAIL\n"); }
                 else               { n_nof++; printf("  FGB burst — no frame decoded\n"); }
 
                 last_decoded_end = abs_start + (uint64_t)blen;
@@ -331,8 +331,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("\n=== %d burst(s): %d decoded, %d CRC fail, %d no frame ===\n",
-           n_burst, n_ok, n_crc, n_nof);
+    printf("\n=== %d burst(s): %d decoded, %d BCH fail, %d no frame ===\n",
+           n_burst, n_ok, n_bch, n_nof);
 
     free(buf);
     fclose(fp);

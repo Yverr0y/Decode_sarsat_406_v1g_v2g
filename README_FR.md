@@ -309,7 +309,7 @@ IQ
   → recherche Costas multiphase (4 phases × 13 décalages)
   → seuillage Manchester (biphase-L ±1.1 rad)
   → correction BCH1 par force brute (t=3, bits 24..105)
-  → 144 bits → validation CRC1/CRC2 + essai de polarité inverse en repli
+  → 144 bits → validation BCH-1/BCH-2 + essai de polarité inverse en repli
 ```
 
 Pas de démodulation FM, pas de détour audio, pas de dépendance à un codec

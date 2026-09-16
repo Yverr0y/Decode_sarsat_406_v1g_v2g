@@ -1,7 +1,7 @@
 # COSPAS-SARSAT Protocol Coverage
 
 This document tracks what the decoder actually supports after demodulation and
-at the application layer. A BCH/CRC-valid frame must never be discarded only
+at the application layer. A BCH-valid frame must never be discarded only
 because its protocol-specific fields are incomplete.
 
 Reference documents used for this audit:
@@ -61,7 +61,7 @@ Decoder: `src/dec406_v1g.c`.
 
 - Test protocols are recognized, but the user-facing output should explicitly
   say `TEST / SELF-TEST / NON-DISTRESS` where applicable.
-- Raw protected frame bits should be printed for every CRC-valid FGB frame, so
+- Raw protected frame bits should be printed for every BCH-valid FGB frame, so
   unsupported subfields remain inspectable.
 - National protocol semantics are intentionally incomplete; current output is
   raw data plus broad protocol identification.
@@ -120,7 +120,7 @@ acquisition, sync, despread, scanner display, and alert filtering.
 
 Application-layer incompleteness must never affect channel-layer acceptance:
 
-1. FGB: CRC-valid frames are accepted, then protocol-specific decode runs.
+1. FGB: BCH-valid frames are accepted, then protocol-specific decode runs.
 2. SGB: BCH-valid frames are accepted, then protocol-specific decode runs.
 3. Unknown, reserved, national, or future fields must be displayed as raw bits
    or hex, not hidden behind a generic `Unknown` message.

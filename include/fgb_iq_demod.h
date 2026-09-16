@@ -28,9 +28,9 @@
  *   out_length  — receives 112 for a short frame or 144 for a long frame.
  *
  * Returns:
- *   0   on success (bits valid, CRC OK).
+ *   0   on success (bits valid, BCH OK).
  *   -1  on failure (buffer too short / acquisition out of bounds).
- *   -2  on CRC failure (bits sliced but neither polarity validates).
+ *   -2  on BCH failure (bits sliced but neither polarity validates).
  *
  * The caller may inspect out_bits on -2 (best-effort decode attempt).
  */

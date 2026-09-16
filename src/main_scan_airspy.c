@@ -288,7 +288,7 @@ static void decode_fgb(uint64_t start, uint64_t len, double offset_hz, double sn
       scan_alert_send("FGB", freq_mhz, snr_db, bits, frame_length, body);
     free(body);
   } else if (rc == -2) {
-    printf("  FGB burst — CRC FAIL\n");
+    printf("  FGB burst — BCH FAIL\n");
   } else {
     printf("  FGB burst — no frame decoded\n");
   }

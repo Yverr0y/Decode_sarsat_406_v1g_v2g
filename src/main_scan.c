@@ -426,7 +426,7 @@ static void decode_fgb(uint64_t start, uint64_t len, double offset_hz, double sn
     }
     free(body);
   } else if (rc == -2) {
-    printf("  FGB burst — CRC FAIL (bits sliced but CRC mismatched both polarities)\n");
+    printf("  FGB burst — BCH FAIL (bits sliced but BCH mismatched both polarities)\n");
   } else {
     printf("  FGB burst — no frame decoded (no sync/burst)\n");
   }

@@ -15,8 +15,8 @@
 #define FSYNC_THRESHOLD  6
 #define PREAMBLE_BITS    15
 
-extern int test_crc1(const char *s);
-extern int test_crc2(const char *s);
+extern int test_bch1(const char *s);
+extern int test_bch2(const char *s);
 
 static const uint8_t FSYNC_NORMAL[FSYNC_LEN]   = {0,0,0,1,0,1,1,1,1};
 static const uint8_t FSYNC_SELFTEST[FSYNC_LEN] = {0,1,1,0,1,0,0,0,0};
@@ -30,19 +30,19 @@ static int sync_pattern_ok(const uint8_t *bits) {
     return (d_n <= 1 || d_s <= 1);
 }
 
-static int crc_ok(const uint8_t *bits, int length) {
+static int bch_ok(const uint8_t *bits, int length) {
     char s[200];
     for (int i = 0; i < length; i++) s[i] = bits[i] ? '1' : '0';
     s[length] = '\0';
     if (!sync_pattern_ok(bits)) return 0;
-    if (test_crc1(s)) return 0;
-    if (length == 144 && test_crc2(s)) return 0;
+    if (test_bch1(s)) return 0;
+    if (length == 144 && test_bch2(s)) return 0;
     return 1;
 }
 
-static int frame_crc_ok(const uint8_t *bits) {
+static int frame_bch_ok(const uint8_t *bits) {
     int length = bits[24] ? FGB_LONG_BITS : FGB_SHORT_BITS;
-    return crc_ok(bits, length);
+    return bch_ok(bits, length);
 }
 
 static int is_orbitography(const uint8_t *bits) {
@@ -57,17 +57,17 @@ static int bch1_correct(uint8_t *bits, int length) {
     char s[200];
     for (int i = 0; i < length; i++) s[i] = bits[i] ? '1' : '0';
     s[length] = '\0';
-    if (!test_crc1(s)) return 0;
+    if (!test_bch1(s)) return 0;
 
     for (int a = 24; a < 106; a++) {
         s[a] ^= 1;
-        if (!test_crc1(s)) { bits[a] ^= 1; return 1; }
+        if (!test_bch1(s)) { bits[a] ^= 1; return 1; }
         for (int b = a + 1; b < 106; b++) {
             s[b] ^= 1;
-            if (!test_crc1(s)) { bits[a] ^= 1; bits[b] ^= 1; return 2; }
+            if (!test_bch1(s)) { bits[a] ^= 1; bits[b] ^= 1; return 2; }
             for (int c = b + 1; c < 106; c++) {
                 s[c] ^= 1;
-                if (!test_crc1(s)) { bits[a] ^= 1; bits[b] ^= 1; bits[c] ^= 1; return 3; }
+                if (!test_bch1(s)) { bits[a] ^= 1; bits[b] ^= 1; bits[c] ^= 1; return 3; }
                 s[c] ^= 1;
             }
             s[b] ^= 1;
@@ -83,17 +83,17 @@ static int bch2_correct(uint8_t *bits) {
     char s[FGB_LONG_BITS + 1];
     for (int i = 0; i < FGB_LONG_BITS; i++) s[i] = bits[i] ? '1' : '0';
     s[FGB_LONG_BITS] = '\0';
-    if (!test_crc2(s)) return 0;
+    if (!test_bch2(s)) return 0;
 
     for (int a = 106; a < 144; a++) {
         s[a] ^= 1;
-        if (!test_crc2(s)) {
+        if (!test_bch2(s)) {
             bits[a] ^= 1;
             return 1;
         }
         for (int b = a + 1; b < 144; b++) {
             s[b] ^= 1;
-            if (!test_crc2(s)) {
+            if (!test_bch2(s)) {
                 bits[a] ^= 1;
                 bits[b] ^= 1;
                 return 2;
@@ -111,7 +111,7 @@ static int correct_frame(uint8_t *bits, int *length,
     char s[FGB_LONG_BITS + 1];
     for (int i = 0; i < FGB_LONG_BITS; i++) s[i] = bits[i] ? '1' : '0';
     s[FGB_LONG_BITS] = '\0';
-    if (test_crc1(s)) return 0;
+    if (test_bch1(s)) return 0;
 
     *length = bits[24] ? FGB_LONG_BITS : FGB_SHORT_BITS;
     *bch2_fixed = 0;
@@ -119,12 +119,13 @@ static int correct_frame(uint8_t *bits, int *length,
         *bch2_fixed = bch2_correct(bits);
         if (*bch2_fixed < 0) return 0;
     }
-    if (!(is_orbitography(bits) ? sync_pattern_ok(bits) : frame_crc_ok(bits)))
+    if (!(is_orbitography(bits) ? sync_pattern_ok(bits) : frame_bch_ok(bits)))
         return 0;
 
-    /* Country code sanity check. BCH1 corrects up to 3 errors and CRC1 is only
-     * 24 bits wide, so a burst decoded from noise can still produce a
-     * structurally valid frame — with a country code that does not exist.
+    /* Country code sanity check. BCH-1 corrects up to 3 errors and its parity
+     * field is only 21 bits wide, so a burst decoded from noise can still
+     * produce a structurally valid frame — with a country code that does not
+     * exist.
      * Genuine traffic always carries an assigned MID (locally 227/228 for
      * France); every phantom observed on the 1544 downlink and on local runs
      * showed a one-off unassigned code (995, 908, 867, 830, 796, ...).
@@ -315,7 +316,7 @@ static void dump_bits(int id, long anchor, int state, const uint8_t *b,
     if (!getenv("FGB_IQ_DIAG")) return;
     if (!csv) {
         csv = fopen("fgb_iq_bits.csv", "w");
-        if (csv) fprintf(csv, "burst,anchor,crc_state,bits,soft\n");
+        if (csv) fprintf(csv, "burst,anchor,bch_state,bits,soft\n");
     }
     if (!csv) return;
     fprintf(csv, "%d,%ld,%d,", id, anchor, state);
@@ -572,10 +573,10 @@ int fgb_iq_decode(const float complex *iq, size_t n, int samp_rate,
     /* An early CW end means the carrier-to-data transition was not reliably
      * located: the sync is then placed at cw_min by the retry below, i.e. at a
      * fixed guess, and the bits that follow are noise the BCH can still force
-     * into a valid codeword. On strong signals (firmin: 0 of 1449 CRC OK) this
+     * into a valid codeword. On strong signals (firmin: 0 of 1449 BCH OK) this
      * never happens; on the weak 1544 downlink every phantom decode shows it.
      * We keep the retry but flag the burst so its output is rejected even if
-     * the CRC passes — the preamble count is a poor discriminator (46 genuine
+     * the BCH passes — the preamble count is a poor discriminator (46 genuine
      * firmin decodes pass with a low preamble, 13 of them at 0/15 via the
      * polarity path), whereas this flag separates real from phantom cleanly. */
     int cw_unreliable = 0;
@@ -680,7 +681,7 @@ int fgb_iq_decode(const float complex *iq, size_t n, int samp_rate,
     if (need_flip)
         for (int i = 0; i < FGB_LONG_BITS; i++) out_bits[i] ^= 1;
 
-    /* Step 5: Validate preamble and CRC */
+    /* Step 5: Validate preamble and BCH */
     int pream_ones = 0;
     for (int i = 0; i < PREAMBLE_BITS; i++) pream_ones += out_bits[i];
     DIAG("[fgb_iq] burst=%d preamble=%d/%d fsync=%d/%d ph=%.0f° %s\n",
@@ -696,7 +697,7 @@ int fgb_iq_decode(const float complex *iq, size_t n, int samp_rate,
     int bch2_fixed = 0;
     int final_rc = -2;
     if (correct_frame(out_bits, &frame_length, &bch1_fixed, &bch2_fixed)) {
-        DIAG("[fgb_iq] burst=%d CRC OK (BCH1 corrected %d, BCH2 corrected %d)\n",
+        DIAG("[fgb_iq] burst=%d BCH OK (BCH-1 corrected %d, BCH-2 corrected %d)\n",
              burst_id, bch1_fixed, bch2_fixed);
         dump_bits(burst_id, bit0 + w0, 1, out_bits, best_soft);
         *out_length = frame_length;
@@ -705,22 +706,22 @@ int fgb_iq_decode(const float complex *iq, size_t n, int samp_rate,
         memcpy(out_bits, sliced_bits, sizeof(sliced_bits));
         for (int i = 0; i < FGB_LONG_BITS; i++) out_bits[i] ^= 1;
         if (correct_frame(out_bits, &frame_length, &bch1_fixed, &bch2_fixed)) {
-            DIAG("[fgb_iq] burst=%d CRC OK (polarity, BCH1 corrected %d, BCH2 corrected %d)\n",
+            DIAG("[fgb_iq] burst=%d BCH OK (polarity, BCH-1 corrected %d, BCH-2 corrected %d)\n",
                  burst_id, bch1_fixed, bch2_fixed);
             dump_bits(burst_id, bit0 + w0, 2, out_bits, best_soft);
             *out_length = frame_length;
             final_rc = 0;
         } else {
             memcpy(out_bits, sliced_bits, sizeof(sliced_bits));
-            DIAG("[fgb_iq] burst=%d CRC FAIL\n", burst_id);
+            DIAG("[fgb_iq] burst=%d BCH FAIL\n", burst_id);
             dump_bits(burst_id, bit0 + w0, 0, out_bits, best_soft);
         }
     }
-    /* Reject a CRC-valid frame whose CW end was unreliable: on the weak 1544
+    /* Reject a BCH-valid frame whose CW end was unreliable: on the weak 1544
      * downlink this is a phantom the BCH forced into shape. -2 = "no usable
-     * frame" (same as CRC FAIL to the caller). */
+     * frame" (same as BCH FAIL to the caller). */
     if (final_rc == 0 && cw_unreliable) {
-        DIAG("[fgb_iq] burst=%d rejected: CRC OK but CW end unreliable\n", burst_id);
+        DIAG("[fgb_iq] burst=%d rejected: BCH OK but CW end unreliable\n", burst_id);
         final_rc = -2;
     }
     free(wiq);

@@ -298,7 +298,7 @@ IQ
   → multi-phase Costas search (4 phases × 13 offsets)
   → Manchester slicer (biphase-L ±1.1 rad)
   → BCH1 brute-force correction (t=3, bits 24..105)
-  → 144 bits → CRC1/CRC2 validation + polarity fallback
+  → 144 bits → BCH-1/BCH-2 validation + polarity fallback
 ```
 
 No FM-demod, no audio detour, no biphase-L codec dependency.

@@ -65,7 +65,7 @@ typedef struct {
     uint8_t has_position;
     ProtocolType protocol;
     uint8_t frame_type;
-    uint8_t crc_error;
+    uint8_t bch_error;
     uint8_t activation_method;
     uint8_t location_freshness;
     uint8_t is_test_message;
@@ -104,9 +104,9 @@ static int validate_frame_sync(const char *frame, int frame_length);
 static void decode_1g_frame(const char *frame, int frame_length, BeaconInfo1G *info);
 
 // ===================================================
-// CRC validation functions
+// BCH validation functions
 // ===================================================
-int test_crc1(const char *s) {
+int test_bch1(const char *s) {
     int g[] = {1,0,0,1,1,0,1,1,0,1,1,0,0,1,1,1,1,0,0,0,1,1};
     int div[22];
     int i, j, ss = 0;
@@ -140,7 +140,7 @@ int test_crc1(const char *s) {
     return (ss == 0) ? 0 : 1;
 }
 
-int test_crc2(const char *s) {
+int test_bch2(const char *s) {
     int g[] = {1,0,1,0,1,0,0,1,1,1,0,0,1};
     int div[13];
     int i, j, ss = 0;
@@ -895,40 +895,40 @@ static void binary_to_hex(const char *binary, int length, char *hex_output, size
 static void decode_1g_frame(const char *frame, int frame_length, BeaconInfo1G *info) {
     memset(info, 0, sizeof(BeaconInfo1G));
     info->frame_type = frame_length;
-    info->crc_error = 0;
+    info->bch_error = 0;
 
-    // CRC verification
-    int crc1_failed = test_crc1(frame);
-    int crc2_failed = 0;
+    // BCH verification
+    int bch1_failed = test_bch1(frame);
+    int bch2_failed = 0;
     int is_orbitography = 0;
 
     if (frame_length == LONG_FRAME_BITS) {
         // Check if it's orbitography (protocol 0b000 for user location)
-        // Orbitography beacons don't have position data, so CRC2 doesn't apply
+        // Orbitography beacons don't have position data, so BCH-2 doesn't apply
         int user_protocol_code = get_bits(frame, 36, 3);
         is_orbitography = (user_protocol_code == 0b000);
 
         if (!is_orbitography) {
-            // Only test CRC2 if NOT orbitography
-            crc2_failed = test_crc2(frame);
+            // Only test BCH-2 if NOT orbitography
+            bch2_failed = test_bch2(frame);
         }
     }
 
-    // Display CRC status
-    if (crc1_failed || crc2_failed) {
-        info->crc_error = 1;
+    // Display BCH status
+    if (bch1_failed || bch2_failed) {
+        info->bch_error = 1;
         if (is_orbitography) {
-            DIAG("CRC: CRC1=%s\n", crc1_failed ? "FAIL" : "OK");
+            DIAG("BCH: BCH-1=%s\n", bch1_failed ? "FAIL" : "OK");
         } else {
-            DIAG("CRC ERROR: CRC1=%s CRC2=%s\n",
-                 crc1_failed ? "FAIL" : "OK",
-                 crc2_failed ? "FAIL" : "OK");
+            DIAG("BCH ERROR: BCH-1=%s BCH-2=%s\n",
+                 bch1_failed ? "FAIL" : "OK",
+                 bch2_failed ? "FAIL" : "OK");
         }
     } else {
         if (is_orbitography) {
-            DIAG("CRC: CRC1=OK\n");
+            DIAG("BCH: BCH-1=OK\n");
         } else {
-            DIAG("CRC: CRC1=OK CRC2=OK\n");
+            DIAG("BCH: BCH-1=OK BCH-2=OK\n");
         }
     }
     
@@ -1116,7 +1116,7 @@ void decode_1g(const uint8_t *bits, int length) {
     decode_1g_frame(frame_str, length, &info);
 
     /* Diagnostic dump (FGB_DIAG): one row per frame produced by the
-     * slicer. Comparison target: differentiate CRC-OK from CRC-FAIL
+     * slicer. Comparison target: differentiate BCH-OK from BCH-FAIL
      * (1-2 bit slicing errors? systematic offset? wrong polynomial?).
      * Enable with: FGB_DIAG=1 ./build/dec406_scan ...
      * Output: fgb_bits.csv */
@@ -1126,22 +1126,22 @@ void decode_1g(const uint8_t *bits, int length) {
         if (!diag_csv) {
             diag_csv = fopen("fgb_bits.csv", "w");
             if (diag_csv)
-                fprintf(diag_csv, "frame,length,crc_error,bits\n");
+                fprintf(diag_csv, "frame,length,bch_error,bits\n");
         }
         diag_id++;
         if (diag_csv) {
             fprintf(diag_csv, "%d,%d,%u,", diag_id, length,
-                    (unsigned)info.crc_error);
+                    (unsigned)info.bch_error);
             for (int b = 0; b < length; b++) fputc(frame_str[b], diag_csv);
             fputc('\n', diag_csv);
             fflush(diag_csv);
-            DIAG("[diag] fgb frame=%d crc_error=%u\n",
-                 diag_id, (unsigned)info.crc_error);
+            DIAG("[diag] fgb frame=%d bch_error=%u\n",
+                 diag_id, (unsigned)info.bch_error);
         }
     }
 
-    if (info.crc_error) {
-        printf("\n=== FRAME REJECTED — CRC uncorrectable, decode aborted ===\n");
+    if (info.bch_error) {
+        printf("\n=== FRAME REJECTED — BCH uncorrectable, decode aborted ===\n");
         return;
     }
 

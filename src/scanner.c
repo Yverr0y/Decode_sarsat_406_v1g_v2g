@@ -322,7 +322,7 @@ static void decode_fgb_window(scanner_t *s, scanner_decode_job_t *job) {
                             body);
         free(body);
     } else if (rc == -2) {
-        output_printf("  FGB burst — CRC FAIL\n");
+        output_printf("  FGB burst — BCH FAIL\n");
     } else {
         output_printf("  FGB burst — no frame decoded (no sync/burst)\n");
     }
